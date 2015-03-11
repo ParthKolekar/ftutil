@@ -213,25 +213,39 @@ void print_usage() {
 
 void IndexGet_handler(char **argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
 	if (len < 2) {
-		printf("len: %d\n", len);
+		//printf("len: %d\n", len);
 		logger_error("TOO FEW ARGUMENTS TO INDEXGET");
 		return;
 	}
 
 	int list_type = 0;
+	int reti;
+	regex_t regex;
+
 	if(len >= 2) {
 		if (strcmp(argument_list[1], "--shortlist") == 0) 
 			list_type = 1;
 		else if (strcmp(argument_list[1], "--longlist") == 0) 
 			list_type = 2;
 		else if (strcmp(argument_list[1], "--regex") == 0) 
+		{
 			list_type = 3;
+
+			/* Compile regular expression */
+			reti = regcomp(&regex, argument_list[2], 0);
+			if (reti) {
+				logger_error("COULD NOT COMPILE REGEX");
+				strcpy(server_send_buffer, "COULD NOT COMPILE REGEX");
+				return;
+			}
+
+		}
 		else{
 			logger_error("INCORRECT FORMAT. FLAGS ALLOWED ARE shortlist, longlist, regex");
 			return;
 		}
 	}
-	char output[1024] = {'\0'};		// This stores the string to be sent via server_send_buffer
+	char output[4096000] = {'\0'};		// This stores the string to be sent via server_send_buffer
 
 	// Do the 'ls' part using syscalls
 	int i, fd, bpos, BUF_SIZE = 1024;
@@ -243,7 +257,7 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 	strcpy(dirpath, ".");
 
 	lstat(dirpath, &st_buf);
-	fd = open(".", O_RDONLY | O_DIRECTORY);
+	fd = open(".", O_RDONLY | O_DIRECTORY);		// Open Server Share Directory
 	if (fd == -1)
 		logger_error("COULD NOT OPEN SHARE DIRECTORY");
 
@@ -259,8 +273,9 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 
 		for (bpos = 0; bpos < nread;) 
 		{	
-			int hidden, direc, link, exec;
+			int hidden, direc, link, exec, allowed;
 			hidden = link = direc = exec = 0;
+			allowed = 1;
 			d = (struct linux_dirent *) (buf + bpos);
 
 			if((d->d_name)[0] == '.' )	// Filenames starting with '.' are hidden
@@ -318,10 +333,30 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 				}
 
 				// Printing file/directory name
+				if(list_type == 3)		// Regex
+				{
+					/* Execute regular expression */
+					reti = regexec(&regex, d->d_name, 0, NULL, 0);
+					if (!reti) {
+						printf("%s Matches regex\n", d->d_name);
+						allowed = 1;
+					}
+					else if (reti == REG_NOMATCH) {
+						allowed = 0;
+					}
+					else {
+						// regerror(reti, &regex, msgbuf, sizeof(msgbuf));
+						// fprintf(stderr, "Regex match failed: %s\n", msgbuf);
+						// exit(1);
+						allowed = 0;
+					}
+				}
+
 				i = 0;
-				
+				if(allowed){
+				printf("Allowed here, %s\n", d->d_name);
 				char name_temp[50] = {'\0'};
-				sprintf(name_temp, "%40s", d->d_name);
+				sprintf(name_temp, "%35s", d->d_name);
 				strcat(output, name_temp);
 
 				if(link)
@@ -334,7 +369,7 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 
 				// Print Size
 				char size_temp[4096] = {'\0'};
-				sprintf(size_temp, "%20d", (int)sb.st_size);
+				sprintf(size_temp, "%15d", (int)sb.st_size);
 				strcat(output, size_temp);
 		
 
@@ -342,8 +377,11 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 				char time_temp[1024] = {'\0'};
 				strftime(time_temp, sizeof(time_temp), "%c", localtime(&sb.st_mtime));
 				
+				char time_temp2[4096] = {'\0'};
+				sprintf(time_temp2, "%40s", time_temp);
+				
 				//char *temp = strdup(ctime(&sb.st_mtime));
-				strcat(output, time_temp);
+				strcat(output, time_temp2);
 				//free (temp);
 				//temp = NULL;
 
@@ -352,17 +390,20 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 				//strcat(output, "    ");
 				char type_temp[4096] = {'\0'};
 				if(link)
-					sprintf(type_temp, "%14s", "link");
+					sprintf(type_temp, "%20s", "link");
 				else if(direc)	
-					sprintf(type_temp, "%14s", "directory");
+					sprintf(type_temp, "%20s", "directory");
 				else if(exec)
-					sprintf(type_temp, "%14s", "executable");
+					sprintf(type_temp, "%20s", "executable");
 				else
-					sprintf(type_temp, "%14s", "normal");
+					sprintf(type_temp, "%20s", "normal");
 
 				strcat(output, type_temp);
 				
 				strcat(output, "\n");
+
+			}	// Closing allowed wala 'for'
+			
 			}
 			bpos += d->d_reclen;
 		}
@@ -371,6 +412,27 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 	if (len == 2 && strcmp(argument_list[1], "--longlist") == 0) {
 		printf("OUTPUT:\n%s\n", output);
 		// SEND HERE
+		int i = 0;
+		char c;
+		while(output[i] != '\0') {
+			c = output[i];
+			int count = 0;
+			server_send_buffer[count++] = c;
+			i++;
+			while(count < 1000 && output[i] != '\0') {
+				c = output[i++];
+				server_send_buffer[count++] = c;
+			}
+			server_send_buffer[count] = '\0';
+			if (strcmp(connection_type, "tcp") == 0) {
+				send(connection, server_send_buffer, 1024 * sizeof(char),0); // packet_contents.
+			} else {
+				if (strcmp(connection_type, "udp")) {
+					sendto(sock, server_send_buffer, 1024 * sizeof(char), 0,(struct sockaddr *)&server_addr, sizeof(struct sockaddr));
+				}
+			}
+		}
+		logger_info("INDEXGET REQUEST SERVED");
 
 	}
 	else if (len == 4 && strcmp(argument_list[1], "--shortlist") == 0) {
@@ -468,19 +530,18 @@ void server_query_handler (int sock, int connection, struct sockaddr_in server_a
 	}
 
 	if (strcmp(argument_list[0], "IndexGet") == 0) {
-		printf("Before going, len: %d\n", len);
-
-		IndexGet_handler(argument_list, len, sock, connection, client_addr);
-
-		if (strcmp(connection_type, "tcp") == 0) {
-			send(connection, server_send_buffer, 1024, 0);
-		} else {
-			if (strcmp(connection_type , "udp") == 0) {
-				sendto(sock, server_send_buffer, 1024, 0, (struct sockaddr *)&client_addr, sizeof(struct sockaddr));
-			}
+		if (len < 2) {
+			logger_error("TOO FEW ARGUMENTS TO INDEXGET");
+			strcpy(server_send_buffer, "TOO FEW ARGUMENTS TO INDEXGET.\nUSAGE: IndexGet <flag> [<arg1> <arg2>]");
 		}
-
-		strcpy(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
+		else if ( (strcmp(argument_list[1], "--shortlist") == 0 && len != 4) || (strcmp(argument_list[1], "--regex") == 0 && len != 3) || (strcmp(argument_list[1], "--longlist") == 0 && len != 2) ) {
+			logger_error("INVALID FORMAT. PLEASE CHECK SYNTAX OF INDEXGET");
+			strcpy(server_send_buffer, "INVALID FORMAT. PLEASE CHECK SYNTAX OF INDEXGET\nUSAGE: IndexGet <flag> [<arg1> <arg2>]");
+		}
+		else
+			IndexGet_handler(argument_list, len, sock, connection, client_addr);
+	
+		strcat(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
 
 		if (strcmp(connection_type, "tcp") == 0) {
 			send(connection, server_send_buffer, 1024, 0);
@@ -496,7 +557,7 @@ void server_query_handler (int sock, int connection, struct sockaddr_in server_a
 	if (strcmp(argument_list[0], "FileHash") == 0) {
 		FileHash_handler(argument_list, len, sock, connection, client_addr);
 
-		strcpy(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
+		strcat(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
 
 		if (strcmp(connection_type, "tcp") == 0) {
 			send(connection, server_send_buffer, 1024, 0);
@@ -512,7 +573,7 @@ void server_query_handler (int sock, int connection, struct sockaddr_in server_a
 	if (strcmp(argument_list[0], "FileUpload") == 0) {
 		FileUpload_handler(argument_list, len, sock, connection, client_addr);
 
-		strcpy(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
+		strcat(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
 
 		if (strcmp(connection_type, "tcp") == 0) {
 			send(connection, server_send_buffer, 1024, 0);
@@ -528,7 +589,7 @@ void server_query_handler (int sock, int connection, struct sockaddr_in server_a
 	if (strcmp(argument_list[0], "FileDownload") == 0) {
 		FileDownload_handler(argument_list, len, sock, connection, client_addr);
 
-		strcpy(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
+		strcat(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
 
 		if (strcmp(connection_type, "tcp") == 0) {
 			send(connection, server_send_buffer, 1024, 0);
@@ -541,7 +602,10 @@ void server_query_handler (int sock, int connection, struct sockaddr_in server_a
 		return;
 	}
 
-	strcpy(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
+	else
+		strcpy(server_send_buffer, "INVALID COMMAND.\nList of Allowed Commands is:\n1) IndexGet\n2) FileHash\n3) FileDownload\n4) FileUpload\n5) exit");
+
+	strcat(server_send_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
 
 	if (strcmp(connection_type, "tcp") == 0) {
 			send(connection, server_send_buffer, 1024, 0);
@@ -713,76 +777,76 @@ void run_as_client() {
 		client_receive_buffer = (char *) calloc(sizeof(char) * 1024, 0);
 
 		while (1)
-    	{
-	        printf(">>  ");
-    	    readLine(command);
-        	while (command[0] == '\0')
-        	{
-	            printf(">>  ");
-    	        readLine(command);
-	        }
-    	    if (strncmp (command , "quit" , 4) == 0)
-        	    break;
-        	if (strncmp (command , "exit" , 4) == 0)
-	            break;
-    	    if (strncmp (command , "easter-egg" , 10) == 0) {
-            	fprintf(stdout_file_descriptor ,
-                    "\n"
-                    "         ##\n"
-                    "          ###\n"
-                    "           ####\n"
-                    "            #####\n"
-                    "            #######\n"
-                    "             #######\n"
-                    "             ########\n"
-                    "             ########\n"
-                    "             #########\n"
-                    "             ##########\n"
-                    "            ############\n"
-                    "          ##############\n"
-                    "         ################\n"
-                    "          ################                                                  #\n"
-                    "            ##############                                                ###\n"
-                    "             ##############                                              ####\n"
-                    "             ##############                                           #####\n"
-                    "              ##############                                      #######\n"
-                    "              ##############                                 ###########\n"
-                    "              ###############                              #############\n"
-                    "              ################                           ##############\n"
-                    "             #################        #                ################\n"
-                    "             ##################      ##    #          #################\n"
-                    "            ####################    ###   ##         #################\n"
-                    "                 ################   ########         #################\n"
-                    "                  ################  #######         ###################\n"
-                    "                    #######################       #####################\n"
-                    "                     #####################       ###################\n"
-                    "                       ############################################\n"
-                    "                        ###########################################\n"
-                    "                        ##########################################\n"
-                    "                         ########################################\n"
-                    "                         ########################################\n"
-                    "                          ######################################\n"
-                    "                          ######################################\n"
-                    "                           ##########################      #####\n"
-                    "                           ###  ###################           ##\n"
-                    "                           ##    ###############               #\n"
-                    "                           #     ##  ##########\n"
-                    "                                     ##    ###\n"
-                    "                                           ###\n"
-                    "                                           ##\n"
-                    "                                           #\n"
-                    "\n"
-                    "   LONG   LIVE   THE   BAT.\n"
-                    "\n");
-            	break;
-        	}
+		{
+			printf(">>  ");
+			readLine(command);
+			while (command[0] == '\0')
+			{
+				printf(">>  ");
+				readLine(command);
+			}
+			if (strncmp (command , "quit" , 4) == 0)
+				break;
+			if (strncmp (command , "exit" , 4) == 0)
+				break;
+			if (strncmp (command , "easter-egg" , 10) == 0) {
+				fprintf(stdout_file_descriptor ,
+					"\n"
+					"         ##\n"
+					"          ###\n"
+					"           ####\n"
+					"            #####\n"
+					"            #######\n"
+					"             #######\n"
+					"             ########\n"
+					"             ########\n"
+					"             #########\n"
+					"             ##########\n"
+					"            ############\n"
+					"          ##############\n"
+					"         ################\n"
+					"          ################                                                  #\n"
+					"            ##############                                                ###\n"
+					"             ##############                                              ####\n"
+					"             ##############                                           #####\n"
+					"              ##############                                      #######\n"
+					"              ##############                                 ###########\n"
+					"              ###############                              #############\n"
+					"              ################                           ##############\n"
+					"             #################        #                ################\n"
+					"             ##################      ##    #          #################\n"
+					"            ####################    ###   ##         #################\n"
+					"                 ################   ########         #################\n"
+					"                  ################  #######         ###################\n"
+					"                    #######################       #####################\n"
+					"                     #####################       ###################\n"
+					"                       ############################################\n"
+					"                        ###########################################\n"
+					"                        ##########################################\n"
+					"                         ########################################\n"
+					"                         ########################################\n"
+					"                          ######################################\n"
+					"                          ######################################\n"
+					"                           ##########################      #####\n"
+					"                           ###  ###################           ##\n"
+					"                           ##    ###############               #\n"
+					"                           #     ##  ##########\n"
+					"                                     ##    ###\n"
+					"                                           ###\n"
+					"                                           ##\n"
+					"                                           #\n"
+					"\n"
+					"   LONG   LIVE   THE   BAT.\n"
+					"\n");
+				break;
+			}
 
-        	memset(client_receive_buffer, 0 , sizeof(char) * 1024);
-        	memset(client_send_buffer, 0, sizeof(char) * 1024);
+			memset(client_receive_buffer, 0 , sizeof(char) * 1024);
+			memset(client_send_buffer, 0, sizeof(char) * 1024);
 
-        	strcpy(client_send_buffer, command);
+			strcpy(client_send_buffer, command);
 
-        	if(strcmp(connection_type, "tcp") == 0) {
+			if(strcmp(connection_type, "tcp") == 0) {
 				send(sock, client_send_buffer, strlen(client_send_buffer), 0);
 			} else {
 				if (strcmp(connection_type, "udp") == 0) {
@@ -792,7 +856,7 @@ void run_as_client() {
 
 			if(strcmp(connection_type, "tcp") == 0) {
 				recv_wrapper(sock, client_receive_buffer, sizeof(char) * 1024, 0);
-				printf("%s\n", client_receive_buffer);
+				//printf("%s\n", client_receive_buffer);
 			} else {
 				if (strcmp(connection_type , "udp") == 0) {
 					recvfrom(sock, client_receive_buffer, sizeof(char) * 1024, 0,(struct sockaddr *)&server_addr, temp_sock_len);
@@ -804,7 +868,7 @@ void run_as_client() {
 			while (!strstr(client_receive_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN")) {
 				if(strcmp(connection_type, "tcp") == 0) {
 					recv_wrapper(sock, client_receive_buffer, sizeof(char) * 1024, 0);
-					printf("%s\n", client_receive_buffer);
+					//printf("%s\n", client_receive_buffer);
 				} else {
 					if (strcmp(connection_type , "udp") == 0) {
 						recvfrom(sock, client_receive_buffer, sizeof(char) * 1024, 0,(struct sockaddr *)&server_addr, temp_sock_len);
@@ -812,7 +876,12 @@ void run_as_client() {
 				}
 				strcat (buffer, client_receive_buffer);
 			}
-        }
+
+			char * zero_out = strstr(buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN");
+			*zero_out = '\0';
+
+			fprintf(stdout_file_descriptor, "%s\n", buffer);
+		}
 		close(sock);
 	}
 }
