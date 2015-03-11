@@ -271,7 +271,7 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 		if (nread == 0)		// No more files left
 			break;
 
-		for (bpos = 0; bpos < nread;) 
+		for (bpos = 0; bpos < nread; bpos += d->d_reclen) 
 		{	
 			int hidden, direc, link, exec, allowed;
 			hidden = link = direc = exec = 0;
@@ -354,7 +354,6 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 
 				i = 0;
 				if(allowed){
-				printf("Allowed here, %s\n", d->d_name);
 				char name_temp[50] = {'\0'};
 				sprintf(name_temp, "%35s", d->d_name);
 				strcat(output, name_temp);
@@ -405,7 +404,7 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 			}	// Closing allowed wala 'for'
 			
 			}
-			bpos += d->d_reclen;
+			
 		}
 	}
 	
@@ -432,10 +431,36 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 				}
 			}
 		}
-		logger_info("INDEXGET REQUEST SERVED");
-
+		logger_info("INDEXGET --longlist REQUEST SERVED");
 	}
 	else if (len == 4 && strcmp(argument_list[1], "--shortlist") == 0) {
+	
+	}
+
+	else if (len == 3 && strcmp(argument_list[1], "--regex") == 0) {
+		printf("OUTPUT:\n%s\n", output);
+		// SEND HERE
+		int i = 0;
+		char c;
+		while(output[i] != '\0') {
+			c = output[i];
+			int count = 0;
+			server_send_buffer[count++] = c;
+			i++;
+			while(count < 1000 && output[i] != '\0') {
+				c = output[i++];
+				server_send_buffer[count++] = c;
+			}
+			server_send_buffer[count] = '\0';
+			if (strcmp(connection_type, "tcp") == 0) {
+				send(connection, server_send_buffer, 1024 * sizeof(char),0); // packet_contents.
+			} else {
+				if (strcmp(connection_type, "udp")) {
+					sendto(sock, server_send_buffer, 1024 * sizeof(char), 0,(struct sockaddr *)&server_addr, sizeof(struct sockaddr));
+				}
+			}
+		}
+		logger_info("INDEXGET --regex REQUEST SERVED");
 	}
 }
 
