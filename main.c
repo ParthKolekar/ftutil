@@ -462,10 +462,13 @@ void IndexGet_handler(char **argument_list, int len, int sock, int connection, s
 		}
 		logger_info("INDEXGET --regex REQUEST SERVED");
 	}
+
+	memset(server_send_buffer, 0 , sizeof(char) * 1024);
 }
 
 void FileHash_handler(char **argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
 
+	memset(server_send_buffer, 0 , sizeof(char) * 1024);
 }
 
 void FileUpload_handler(char **argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
@@ -478,7 +481,7 @@ void FileUpload_handler(char **argument_list, int len, int sock, int connection,
 	}
 	char filename[1024] = {'\0'};
 	strcpy(filename, argument_list[1]);
-
+	memset(server_send_buffer, 0 , sizeof(char) * 1024);
 }
 
 void FileDownload_handler(char **argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
@@ -517,6 +520,7 @@ void FileDownload_handler(char **argument_list, int len, int sock, int connectio
 		}
 		fclose(file);
 	}
+	memset(server_send_buffer, 0 , sizeof(char) * 1024);
 }
 
 void PING_handler(char ** argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
@@ -863,7 +867,7 @@ void run_as_client() {
 					"\n"
 					"   LONG   LIVE   THE   BAT.\n"
 					"\n");
-				break;
+				continue;
 			}
 
 			memset(client_receive_buffer, 0 , sizeof(char) * 1024);
@@ -881,7 +885,6 @@ void run_as_client() {
 
 			if(strcmp(connection_type, "tcp") == 0) {
 				recv_wrapper(sock, client_receive_buffer, sizeof(char) * 1024, 0);
-				//printf("%s\n", client_receive_buffer);
 			} else {
 				if (strcmp(connection_type , "udp") == 0) {
 					recvfrom(sock, client_receive_buffer, sizeof(char) * 1024, 0,(struct sockaddr *)&server_addr, temp_sock_len);
@@ -893,7 +896,6 @@ void run_as_client() {
 			while (!strstr(client_receive_buffer, "MAGIC-STRING-SPRINKLEBERRY-MUFFIN")) {
 				if(strcmp(connection_type, "tcp") == 0) {
 					recv_wrapper(sock, client_receive_buffer, sizeof(char) * 1024, 0);
-					//printf("%s\n", client_receive_buffer);
 				} else {
 					if (strcmp(connection_type , "udp") == 0) {
 						recvfrom(sock, client_receive_buffer, sizeof(char) * 1024, 0,(struct sockaddr *)&server_addr, temp_sock_len);
