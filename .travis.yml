@@ -1,0 +1,12 @@
+language: c
+
+compiler: 
+    - gcc
+
+script:
+    - make 
+    - make ofast
+
+notifications:
+    email:
+        - parth.kolekar@students.iiit.ac.in
