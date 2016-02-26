@@ -69,3 +69,11 @@ void print_usage();
 #ifndef MESSAGE_WARN
 #define MESSAGE_WARN "[WARN] "
 #endif
+
+#ifndef MESSAGE_CLIENT
+#define MESSAGE_CLIENT "[CLIENT] "
+#endif
+
+#ifndef MESSAGE_SERVER
+#define MESSAGE_SERVER "[SERVER] "
+#endif

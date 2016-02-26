@@ -1,23 +1,18 @@
 OBJ = ftutil
-override CFLAGS += -Ofast -funroll-loops -flto -Wall -DCOLOR
-override DEVEL_FLAGS += -g -Wall -DCOLOR
+override CFLAGS += -O3 -funroll-loops -flto -Wall -DCOLOR
 override LFLAGS += 
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 CC = gcc
 
 $(OBJ) : main.o 
-	$(CC) -Wall $^ -o $@ $(LFLAGS)
+	$(CC) -Wall $^ -o $@ $(LFLAGS) $(CFLAGS)
 
-%.o : %.c
-	$(CC) $(DEVEL_FLAGS) -c $^
+main.o : main.c
+	$(CC) $(CFLAGS) -c $^
 
 clean :
-	rm -f *.o $(OBJ)
-
-ofast :
-	$(CC) $(CFLAGS) -c main.c
-	$(CC) -Wall *.o -o $(OBJ) $(LFLAGS) $(CFLAGS)
+	rm -f main.o $(OBJ)
 
 install : $(OBJ)
 	@echo "Installing program to $(DESTDIR)$(BINDIR) ..."

@@ -28,6 +28,6 @@
 *.x86_64
 *.hex
 
-# mytime specific
+# ftutil specific
 ftutil
 *.tar
