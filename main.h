@@ -1,3 +1,6 @@
+#ifndef _MAIN_H
+#define _MAIN_H
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -28,14 +31,6 @@ void print_usage();
 
 #ifndef true
 #define true 1
-#endif
-
-#ifndef and
-#define and &&
-#endif
-
-#ifndef or
-#define or ||
 #endif
 
 #ifndef COLOR_RED
@@ -76,4 +71,6 @@ void print_usage();
 
 #ifndef MESSAGE_SERVER
 #define MESSAGE_SERVER "[SERVER] "
+#endif
+
 #endif
