@@ -1,15 +1,8 @@
-#ifndef _SERVER_C
-#define _SERVER_C
+#ifndef _SERVER_H
+#define _SERVER_H
 
 #include "main.h"
 #include "utils.h"
-
-extern FILE * stdin_file_descriptor;
-extern FILE * stdout_file_descriptor;
-extern FILE * stderr_file_descriptor;
-
-extern bool is_server;
-extern bool is_client;
 
 extern char * connection_type;
 
@@ -17,9 +10,6 @@ extern u_short server_port;
 
 extern char * server_receive_buffer;
 extern char * server_send_buffer;
-
-extern char * client_receive_buffer;
-extern char * client_send_buffer;
 
 void PING_handler(char ** argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
     strcpy(server_send_buffer, "PONG");

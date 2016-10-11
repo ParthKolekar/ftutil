@@ -1,5 +1,5 @@
-#ifndef _UTILS_C
-#define _UTILS_C
+#ifndef _UTILS_H
+#define _UTILS_H
 
 #include "main.h"
 
@@ -86,14 +86,13 @@ void logger_info_server (char *string) {
 
 void parse_to_array ( char * line, char ** argv )
 {
-    while (*line != '\0' && *line != '>' && *line != '<')
-    {   
+    while (*line != '\0' && *line != '>' && *line != '<') {
         while (*line == ' ' || *line == '\t' || *line == '\n')
             *line++ = '\0';
         *argv++ = line;
         while (*line != '\0' && *line != ' ' && *line != '\t' && *line != '\n')
             line++;
-    }   
+    }
     *argv = 0;
 }
 
