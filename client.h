@@ -66,8 +66,8 @@ void run_as_client() {
 
     logger_info_client("CONNECTED TO SOCKET");
 
-    client_send_buffer = (char *) calloc(sizeof(char) * 1024, 0);
-    client_receive_buffer = (char *) calloc(sizeof(char) * 1024, 0);
+    client_send_buffer = (char *) calloc(sizeof(char), 1024);
+    client_receive_buffer = (char *) calloc(sizeof(char), 1024);
 
     while (!quit_received) {
         printf(">>  ");
@@ -139,8 +139,8 @@ void run_as_client() {
             continue;
         }
 
-        memset(client_receive_buffer, 0, sizeof(char) * 1024);
-        memset(client_send_buffer, 0, sizeof(char) * 1024);
+        memset(client_send_buffer, 0, 1024 * sizeof(char));
+        memset(client_receive_buffer, 0, 1024 * sizeof(char));
 
         strcpy(client_send_buffer, command);
 
