@@ -58,99 +58,89 @@ bool server_query_handler (int sock, int connection, struct sockaddr_in server_a
 void run_as_server() {
     fflush(stdout_file_descriptor);
     fflush(stderr_file_descriptor);
-    int pid = fork();
-    int status;
 
-    if (pid == 0) {
-        if (is_client == true) {
-            // Do nothing
-        } else {
-            waitpid(pid, &status, 0);
+    int sock = 0;
+    int connection = 0;
+    struct sockaddr_in server_addr;
+    struct sockaddr_in client_addr;
+    ssize_t bytes_recv;
+    int sin_size;
+    char print_buffer[4096];
+    bool quit_received = false;
+
+    if(strcmp(connection_type, "tcp") == 0) {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock == -1){
+            logger_error_server("UNABLE TO RETRIEVE SOCKET");
+            exit(EXIT_FAILURE);
         }
     } else {
-        int sock = 0;
-        int connection = 0;
-        struct sockaddr_in server_addr;
-        struct sockaddr_in client_addr;
-        ssize_t bytes_recv;
-        int sin_size;
-        char print_buffer[4096];
-        bool quit_received = false;
-
-        if(strcmp(connection_type, "tcp") == 0) {
-            sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock == -1){
+        if(strcmp(connection_type, "udp") == 0) {
+            sock = socket(AF_INET, SOCK_DGRAM, 0);
+            if (sock == -1) {
                 logger_error_server("UNABLE TO RETRIEVE SOCKET");
                 exit(EXIT_FAILURE);
             }
-        } else {
-            if(strcmp(connection_type, "udp") == 0) {
-                sock = socket(AF_INET, SOCK_DGRAM, 0);
-                if (sock == -1) {
-                    logger_error_server("UNABLE TO RETRIEVE SOCKET");
-                    exit(EXIT_FAILURE);
-                }
-            }
         }
+    }
 
-        logger_info_server("SOCKET RETRIEVED");
+    logger_info_server("SOCKET RETRIEVED");
 
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(server_port);
-        server_addr.sin_addr.s_addr = INADDR_ANY;
-        bzero(&(server_addr.sin_zero), 8);
-        if(bind(sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)  {
-            logger_error_server("UNABLE TO BIND SOCKET");
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(server_port);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    bzero(&(server_addr.sin_zero), 8);
+    if(bind(sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)  {
+        logger_error_server("UNABLE TO BIND SOCKET");
+        exit(EXIT_FAILURE);
+    }
+
+    logger_info_server("SOCKET BOUND");
+
+    if (strcmp(connection_type, "tcp") == 0) {
+        if (listen(sock, 10) == -1) {
+            logger_error_server("UNABLE TO LISTEN ON SOCKET");
             exit(EXIT_FAILURE);
         }
-
-        logger_info_server("SOCKET BOUND");
-
-        if (strcmp(connection_type, "tcp") == 0) {
-            if (listen(sock, 10) == -1) {
-                logger_error_server("UNABLE TO LISTEN ON SOCKET");
-                exit(EXIT_FAILURE);
-            }
-        }
-        server_send_buffer = (char *) calloc(sizeof(char), 1024);
-        server_receive_buffer = (char *) calloc(sizeof(char), 1024);
-
-        logger_info_server("LISTENING ON SOCKET");
-
-        while(!quit_received) {
-            sin_size = sizeof(struct sockaddr_in);
-            socklen_t *temp_sock_len = (socklen_t *) &sin_size;
-            if (strcmp(connection_type, "tcp") == 0) {
-                connection = accept(sock, (struct sockaddr *)&client_addr, temp_sock_len);
-                logger_info_server("CONNECTION ESTABLISHED");
-            }
-            while(!quit_received) {
-                memset(server_send_buffer, 0, 1024*sizeof(char));
-                memset(server_receive_buffer, 0, 1024*sizeof(char));
-
-                if(strcmp(connection_type, "tcp") == 0) {
-                    bytes_recv = recv_wrapper(connection, server_receive_buffer, 1024, 0);
-                } else {
-                    if(strcmp(connection_type, "udp") == 0) {
-                        bytes_recv = recvfrom(sock, server_receive_buffer, 1024, 0, (struct sockaddr *)&client_addr, temp_sock_len);
-                    }
-                }
-                server_receive_buffer[bytes_recv] = '\0';
-
-                strcpy(print_buffer, "\nRECEIVED REQUEST:\n-----------------\n");
-                strcat(print_buffer, server_receive_buffer);
-                logger_info_server(print_buffer);
-
-                if(bytes_recv == 0 || strcmp(server_receive_buffer, "EXIT") == 0) {
-                    logger_info_server("CONNECTION CLOSED");
-                    close(connection);
-                    break;
-                }
-                quit_received = !server_query_handler(sock, connection, server_addr, client_addr);
-            }
-        }
-        close(sock);
     }
+    server_send_buffer = (char *) calloc(sizeof(char), 1024);
+    server_receive_buffer = (char *) calloc(sizeof(char), 1024);
+
+    logger_info_server("LISTENING ON SOCKET");
+
+    while(!quit_received) {
+        sin_size = sizeof(struct sockaddr_in);
+        socklen_t *temp_sock_len = (socklen_t *) &sin_size;
+        if (strcmp(connection_type, "tcp") == 0) {
+            connection = accept(sock, (struct sockaddr *)&client_addr, temp_sock_len);
+            logger_info_server("CONNECTION ESTABLISHED");
+        }
+        while(!quit_received) {
+            memset(server_send_buffer, 0, 1024*sizeof(char));
+            memset(server_receive_buffer, 0, 1024*sizeof(char));
+
+            if(strcmp(connection_type, "tcp") == 0) {
+                bytes_recv = recv_wrapper(connection, server_receive_buffer, 1024, 0);
+            } else {
+                if(strcmp(connection_type, "udp") == 0) {
+                    bytes_recv = recvfrom(sock, server_receive_buffer, 1024, 0, (struct sockaddr *)&client_addr, temp_sock_len);
+                }
+            }
+            server_receive_buffer[bytes_recv] = '\0';
+
+            strcpy(print_buffer, "\nRECEIVED REQUEST:\n-----------------\n");
+            strcat(print_buffer, server_receive_buffer);
+            logger_info_server(print_buffer);
+
+            if(bytes_recv == 0 || strcmp(server_receive_buffer, "EXIT") == 0) {
+                logger_info_server("CONNECTION CLOSED");
+                close(connection);
+                break;
+            }
+            quit_received = !server_query_handler(sock, connection, server_addr, client_addr);
+        }
+    }
+    close(sock);
 }
 
 #endif
