@@ -66,8 +66,8 @@ void run_as_client() {
 
     logger_info_client("CONNECTED TO SOCKET");
 
-    client_send_buffer = (char *) calloc(sizeof(char), 1024);
-    client_receive_buffer = (char *) calloc(sizeof(char), 1024);
+    client_send_buffer = (char *) calloc(1024, sizeof(char));
+    client_receive_buffer = (char *) calloc(1024, sizeof(char));
 
     while (!quit_received) {
         printf(">>  ");

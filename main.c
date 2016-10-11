@@ -36,6 +36,14 @@ void parse_arguments(const int argc, char * const *argv) {
             stdin_file_descriptor = fopen(optarg, "r");
             if (!stdin_file_descriptor) {
                 fprintf(stderr, "%s\n", "INVALID FILE");
+                if (connection_type) {
+                    free(connection_type);
+                    server_hostname = NULL;
+                }
+                if (server_hostname) {
+                    free(server_hostname);
+                    server_hostname = NULL;
+                }
                 exit(EXIT_FAILURE);
             }
             break;
@@ -43,6 +51,14 @@ void parse_arguments(const int argc, char * const *argv) {
             stdout_file_descriptor = fopen(optarg, "a");
             if (!stdout_file_descriptor) {
                 fprintf(stderr, "%s\n", "INVALID FILE");
+                if (connection_type) {
+                    free(connection_type);
+                    server_hostname = NULL;
+                }
+                if (server_hostname) {
+                    free(server_hostname);
+                    server_hostname = NULL;
+                }
                 exit(EXIT_FAILURE);
             }
             colorize = false;
@@ -51,6 +67,14 @@ void parse_arguments(const int argc, char * const *argv) {
             stderr_file_descriptor = fopen(optarg, "a");
             if (!stderr_file_descriptor) {
                 fprintf(stderr, "%s\n", "INVALID FILE");
+                if (connection_type) {
+                    free(connection_type);
+                    server_hostname = NULL;
+                }
+                if (server_hostname) {
+                    free(server_hostname);
+                    server_hostname = NULL;
+                }
                 exit(EXIT_FAILURE);
             }
             colorize = false;
@@ -71,14 +95,30 @@ void parse_arguments(const int argc, char * const *argv) {
             server_hostname = strdup(optarg);
             break;
             case 't':
+            if (connection_type) {
+                free(connection_type);
+                connection_type = NULL;
+            }
             connection_type = strdup("tcp");
             break;
             case 'u':
+            if (connection_type) {
+                free(connection_type);
+                connection_type = NULL;
+            }
             connection_type = strdup("udp");
             break;
 
             default: 
             print_usage();
+            if (connection_type) {
+                free(connection_type);
+                server_hostname = NULL;
+            }
+            if (server_hostname) {
+                free(server_hostname);
+                server_hostname = NULL;
+            }
             exit(EXIT_FAILURE);
         }
     }

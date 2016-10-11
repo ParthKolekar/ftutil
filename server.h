@@ -93,8 +93,8 @@ void run_as_server() {
             exit(EXIT_FAILURE);
         }
     }
-    server_send_buffer = (char *) calloc(sizeof(char), 1024);
-    server_receive_buffer = (char *) calloc(sizeof(char), 1024);
+    server_send_buffer = (char *) calloc(1024, sizeof(char));
+    server_receive_buffer = (char *) calloc(1024, sizeof(char));
 
     logger_info_server("LISTENING ON SOCKET");
 
