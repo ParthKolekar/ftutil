@@ -29,6 +29,7 @@ void run_as_client() {
     host = gethostbyname(server_hostname);
     if(!host) {
         logger_error_client("INVALID HOST ADDRESS");
+        cleanup_client_server();
         exit(EXIT_FAILURE);
     }
 
@@ -38,6 +39,7 @@ void run_as_client() {
         sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock == -1) {
             logger_error_client("UNABLE TO RETRIEVE SOCKET");
+            cleanup_client_server();
             exit(EXIT_FAILURE);
         }
     } else {
@@ -45,6 +47,7 @@ void run_as_client() {
             sock = socket(AF_INET, SOCK_DGRAM, 0);
             if (sock == -1) {
                 logger_error_client("UNABLE TO RETRIEVE SOCKET");
+                cleanup_client_server();
                 exit(EXIT_FAILURE);
             }
         }
@@ -60,6 +63,7 @@ void run_as_client() {
     if (strcmp(connection_type, "tcp") == 0) {
         if (connect(sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1) {
             logger_error_client("UNABLE TO CONNECT TO SOCKET");
+            cleanup_client_server();
             exit(EXIT_FAILURE);
         }
     }
@@ -76,16 +80,17 @@ void run_as_client() {
             printf("%s ", ">>  ");
             readLine(command);
         }
-        if (strcmp (command, "EXIT") == 0) {
-            printf("%s\n", "Usage: EXIT REMOTE|SELF");
-            continue;
-        }
-        if (strcmp (command, "EXIT SELF") == 0) {
-            quit_received = true;
-            break;
-        }
-        if (strcmp (command, "EXIT REMOTE") == 0) {
-            quit_received = true;
+        if (strncmp (command, "EXIT", 4) == 0) {
+            if (strncmp (command, "EXIT SELF", 9) == 0) {
+                quit_received = true;
+                break;
+            }
+            if (strncmp (command, "EXIT REMOTE", 11) == 0) {
+                quit_received = true;
+            } else {
+                printf("%s\n", "Usage: EXIT REMOTE|SELF");
+                continue;
+            }
         }
         if (strncmp (command, "easter-egg", 10) == 0) {
             fprintf(stdout_file_descriptor,

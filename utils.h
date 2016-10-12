@@ -7,6 +7,15 @@ extern FILE * stdin_file_descriptor;
 extern FILE * stdout_file_descriptor;
 extern FILE * stderr_file_descriptor;
 
+extern char * server_hostname;
+extern char * connection_type;
+
+extern char * client_send_buffer;
+extern char * client_receive_buffer;
+
+extern char * server_send_buffer;
+extern char * server_receive_buffer;
+
 extern bool colorize;
 
 bool set_socket_blocking_enabled(int fd, bool blocking)
@@ -94,6 +103,45 @@ void parse_to_array ( char * line, char ** argv )
             line++;
     }
     *argv = 0;
+}
+
+void cleanup_client_server() {
+if (stdin_file_descriptor && stdin_file_descriptor != stdin) {
+        fclose(stdin_file_descriptor);
+        stdin_file_descriptor = NULL;
+    }
+    if (stdout_file_descriptor && stdout_file_descriptor != stdout) {
+        fclose(stdout_file_descriptor);
+        stdout_file_descriptor = NULL;
+    }
+    if (stderr_file_descriptor && stderr_file_descriptor != stderr) {
+        fclose(stderr_file_descriptor);
+        stderr_file_descriptor = NULL;
+    }
+    if (server_hostname) {
+        free (server_hostname);
+        server_hostname = NULL;
+    }
+    if (connection_type) {
+        free (connection_type);
+        connection_type = NULL;
+    }
+    if (server_send_buffer) {
+        free(server_send_buffer);
+        server_send_buffer = NULL;
+    }
+    if (server_receive_buffer) {
+        free(server_receive_buffer);
+        server_receive_buffer = NULL;
+    }
+    if (client_send_buffer) {
+        free(client_send_buffer);
+        client_send_buffer = NULL;
+    }
+    if (client_receive_buffer) {
+        free(client_receive_buffer);
+        client_receive_buffer = NULL;
+    }
 }
 
 #endif

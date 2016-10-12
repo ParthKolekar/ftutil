@@ -62,6 +62,7 @@ void run_as_server() {
         sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock == -1){
             logger_error_server("UNABLE TO RETRIEVE SOCKET");
+            cleanup_client_server();
             exit(EXIT_FAILURE);
         }
     } else {
@@ -69,6 +70,7 @@ void run_as_server() {
             sock = socket(AF_INET, SOCK_DGRAM, 0);
             if (sock == -1) {
                 logger_error_server("UNABLE TO RETRIEVE SOCKET");
+                cleanup_client_server();
                 exit(EXIT_FAILURE);
             }
         }
@@ -82,6 +84,7 @@ void run_as_server() {
     bzero(&(server_addr.sin_zero), 8);
     if(bind(sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)  {
         logger_error_server("UNABLE TO BIND SOCKET");
+        cleanup_client_server();
         exit(EXIT_FAILURE);
     }
 
@@ -90,6 +93,7 @@ void run_as_server() {
     if (strcmp(connection_type, "tcp") == 0) {
         if (listen(sock, 10) == -1) {
             logger_error_server("UNABLE TO LISTEN ON SOCKET");
+            cleanup_client_server();
             exit(EXIT_FAILURE);
         }
     }

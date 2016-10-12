@@ -36,14 +36,7 @@ void parse_arguments(const int argc, char * const *argv) {
             stdin_file_descriptor = fopen(optarg, "r");
             if (!stdin_file_descriptor) {
                 fprintf(stderr, "%s\n", "INVALID FILE");
-                if (connection_type) {
-                    free(connection_type);
-                    server_hostname = NULL;
-                }
-                if (server_hostname) {
-                    free(server_hostname);
-                    server_hostname = NULL;
-                }
+                cleanup_client_server();
                 exit(EXIT_FAILURE);
             }
             break;
@@ -51,14 +44,7 @@ void parse_arguments(const int argc, char * const *argv) {
             stdout_file_descriptor = fopen(optarg, "a");
             if (!stdout_file_descriptor) {
                 fprintf(stderr, "%s\n", "INVALID FILE");
-                if (connection_type) {
-                    free(connection_type);
-                    server_hostname = NULL;
-                }
-                if (server_hostname) {
-                    free(server_hostname);
-                    server_hostname = NULL;
-                }
+                cleanup_client_server();
                 exit(EXIT_FAILURE);
             }
             colorize = false;
@@ -67,14 +53,7 @@ void parse_arguments(const int argc, char * const *argv) {
             stderr_file_descriptor = fopen(optarg, "a");
             if (!stderr_file_descriptor) {
                 fprintf(stderr, "%s\n", "INVALID FILE");
-                if (connection_type) {
-                    free(connection_type);
-                    server_hostname = NULL;
-                }
-                if (server_hostname) {
-                    free(server_hostname);
-                    server_hostname = NULL;
-                }
+                cleanup_client_server();
                 exit(EXIT_FAILURE);
             }
             colorize = false;
@@ -175,42 +154,6 @@ int main(const int argc, char * const * argv)
     if (is_client) {
         run_as_client();
     }
-
-    if (stdin_file_descriptor && stdin_file_descriptor != stdin) {
-        fclose(stdin_file_descriptor);
-        stdin_file_descriptor = NULL;
-    }
-    if (stdout_file_descriptor && stdout_file_descriptor != stdout) {
-        fclose(stdout_file_descriptor);
-        stdout_file_descriptor = NULL;
-    }
-    if (stderr_file_descriptor && stderr_file_descriptor != stderr) {
-        fclose(stderr_file_descriptor);
-        stderr_file_descriptor = NULL;
-    }
-    if (server_hostname) {
-        free (server_hostname);
-        server_hostname = NULL;
-    }
-    if (connection_type) {
-        free (connection_type);
-        connection_type = NULL;
-    }
-    if (server_send_buffer) {
-        free(server_send_buffer);
-        server_send_buffer = NULL;
-    }
-    if (server_receive_buffer) {
-        free(server_receive_buffer);
-        server_receive_buffer = NULL;
-    }
-    if (client_send_buffer) {
-        free(client_send_buffer);
-        client_send_buffer = NULL;
-    }
-    if (client_receive_buffer) {
-        free(client_receive_buffer);
-        client_receive_buffer = NULL;
-    }
+    cleanup_client_server();
     return 0;
 }

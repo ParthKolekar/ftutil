@@ -5,8 +5,8 @@ PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 CC = gcc
 
-$(OBJ) : main.c
-	$(CC) -Wall $^ -o $@ $(LFLAGS) $(CFLAGS)
+$(OBJ) : main.c client.h main.h server.h utils.h
+	$(CC) -Wall main.c -o ${OBJ} $(LFLAGS) $(CFLAGS)
 
 clean :
 	rm -f main.o $(OBJ)
