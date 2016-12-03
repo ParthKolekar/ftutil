@@ -11,10 +11,6 @@ extern u_short server_port;
 extern char * server_receive_buffer;
 extern char * server_send_buffer;
 
-void PING_handler(char ** argument_list, int len, int sock, int connection, struct sockaddr_in server_addr) {
-    strcpy(server_send_buffer, "PONG");
-}
-
 bool server_query_handler (int sock, int connection, struct sockaddr_in server_addr, struct sockaddr_in client_addr) {
     char *argument_list[1000];
     parse_to_array(server_receive_buffer, argument_list);
@@ -24,7 +20,7 @@ bool server_query_handler (int sock, int connection, struct sockaddr_in server_a
         ;
 
     if (strcmp(argument_list[0], "PING") == 0) {
-        PING_handler(argument_list, len, sock, connection, client_addr);
+    	strcpy(server_send_buffer, "PONG");
     } else if (strcmp(argument_list[0], "EXIT") == 0) {
         return false;
     } else {
