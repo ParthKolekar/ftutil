@@ -77,7 +77,7 @@ void run_as_server() {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(server_port);
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    bzero(&(server_addr.sin_zero), 8);
+    memset(&(server_addr.sin_zero), 0, 8);
     if(bind(sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)  {
         logger_error_server("UNABLE TO BIND SOCKET");
         cleanup_client_server();
